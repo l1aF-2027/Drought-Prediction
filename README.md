@@ -15,7 +15,7 @@ An interactive visualization tool for drought prediction and analysis across US 
 
 ## Screenshots
 
-![Drought Monitor Screenshot](https://via.placeholder.com/800x400)
+![image](https://github.com/user-attachments/assets/5d52ccbc-722d-4268-9942-cde0224fc009)
 
 ## Data
 
@@ -28,7 +28,7 @@ The application uses US county-level drought data with the following components:
 
 1. Clone this repository
    ```
-   git clone https://github.com/yourusername/drought-monitor.git
+   git clone https://github.com/l1aF-2027/drought-monitor.git
    cd drought-monitor
    ```
 
