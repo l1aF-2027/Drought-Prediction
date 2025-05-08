@@ -1,1 +1,7 @@
+geopandas
+pandas
 streamlit
+pydeck
+matplotlib
+seaborn
+scikit-learn
