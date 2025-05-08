@@ -52,7 +52,7 @@ st.markdown("""
 # Cache các hàm đọc dữ liệu để chỉ đọc một lần
 @st.cache_data
 def load_data():
-    dict_map = pd.read_csv('https://huggingface.co/spaces/l1aF2027/Drought-Monitor/raw/main/src/data/dict_map.csv')
+    dict_map = pd.read_csv('data/dict_map.csv')
     counties_gdf = gpd.read_file('data/counties.geojson')
     counties_gdf['fips'] = counties_gdf['GEOID'].astype(str).str.zfill(5)
     dict_map['fips'] = dict_map['fips'].astype(str).str.zfill(5)
