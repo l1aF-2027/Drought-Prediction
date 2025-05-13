@@ -47,7 +47,7 @@ function MapUpdater({ position }: { position: [number, number] }) {
 
   useEffect(() => {
     if (position) {
-      map.setView(position, 14); 
+      map.setView(position, 14);
     }
   }, [map, position]);
   return null;
@@ -116,17 +116,26 @@ export default function MapComponent({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isPopoverOpen, setIsPopoverOpen] = useState<boolean>(false);
   const mapRef = useRef<any>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [currentGpsPosition, setCurrentGpsPosition] = useState<
+    [number, number] | null
+  >(null);
 
-  // Set initial position based on user's location or default to Vietnam
-  useEffect(() => {
+  // Get user's current location and set it
+  const getCurrentPosition = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          setPosition([latitude, longitude]);
+          const newPosition: [number, number] = [latitude, longitude];
+          setCurrentGpsPosition(newPosition);
+          setPosition(newPosition);
+          // Also update the parent component with the GPS position
+          onCoordinateSelect(latitude, longitude);
         },
-        () => {
-          // Default position if geolocation is denied (Hanoi, Vietnam)
+        (error) => {
+          console.error("Error getting current position:", error);
+          // Default position if geolocation fails (Hanoi, Vietnam)
           setPosition([21.0285, 105.8542]);
         }
       );
@@ -134,6 +143,11 @@ export default function MapComponent({
       // Default position if geolocation is not supported
       setPosition([21.0285, 105.8542]);
     }
+  };
+
+  // Set initial position based on user's location
+  useEffect(() => {
+    getCurrentPosition();
   }, []);
 
   // Update position when coordinates prop changes
@@ -178,6 +192,13 @@ export default function MapComponent({
       return null;
     }
   };
+
+  // Keep focus on search input when search results change
+  useEffect(() => {
+    if (searchResults.length > 0 && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchResults]);
 
   // Search for locations as user types
   useEffect(() => {
@@ -247,23 +268,38 @@ export default function MapComponent({
       onCoordinateSelect(latitude, longitude);
     }
 
-    // Close popover and update search field
-    setIsPopoverOpen(false);
+    // Update search query but keep the popover open
     setSearchQuery(result.display_name);
+
+    // Keep focus on the input and keep popover open
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
   };
 
   // Handle search form submission
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (searchQuery.trim() === "") return;
+    // If search query is empty, use current GPS position
+    if (searchQuery.trim() === "") {
+      if (currentGpsPosition) {
+        setPosition(currentGpsPosition);
+        onCoordinateSelect(currentGpsPosition[0], currentGpsPosition[1]);
+        mapRef.current?.setView(currentGpsPosition, 14);
+      } else {
+        // If GPS position isn't available yet, try to get it
+        getCurrentPosition();
+      }
+      return;
+    }
 
     if (searchResults.length > 0) {
       const firstResult = searchResults[0];
       const latitude = Number.parseFloat(firstResult.lat);
       const longitude = Number.parseFloat(firstResult.lon);
 
-      // Nếu có thông tin chi tiết, ưu tiên centroid
+      // If details are available, prioritize centroid
       if (firstResult.osm_type && firstResult.osm_id) {
         const details = await getLocationDetail(
           firstResult.osm_type,
@@ -278,21 +314,49 @@ export default function MapComponent({
           );
           setPosition([centroidLat, centroidLon]);
           onCoordinateSelect(centroidLat, centroidLon);
-          mapRef.current?.setView([centroidLat, centroidLon], 14); // 👈 Zoom 14 khi nhấn Enter
+          mapRef.current?.setView([centroidLat, centroidLon], 14);
+          setIsPopoverOpen(false);
           return;
         }
       }
 
-      // Nếu không có centroid, dùng lat/lon gốc
+      // If no centroid available, use original lat/lon
       setPosition([latitude, longitude]);
       onCoordinateSelect(latitude, longitude);
-      mapRef.current?.setView([latitude, longitude], 14); // 👈 Zoom 14 khi nhấn Enter
+      mapRef.current?.setView([latitude, longitude], 14);
       setSearchQuery(firstResult.display_name);
+      setIsPopoverOpen(false);
     } else {
       alert("Không tìm thấy địa điểm phù hợp.");
+      // Re-focus the input after alert
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
     }
   };
-  
+
+  // Effect to maintain focus on search input except when user deliberately clicks away
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      // Keep focus on the search input unless user is clicking somewhere else deliberately
+      if (
+        searchInputRef.current &&
+        e.target instanceof Node &&
+        !searchInputRef.current.contains(e.target) &&
+        !(e.target as Element).closest(".popover-content")
+      ) {
+        // User clicked outside the search input and popover, let them
+      } else if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    };
+
+    document.addEventListener("click", handleClick);
+
+    return () => {
+      document.removeEventListener("click", handleClick);
+    };
+  }, []);
 
   if (!position) {
     return <div>Đang tải bản đồ...</div>;
@@ -305,7 +369,16 @@ export default function MapComponent({
         className="flex gap-2 mb-2 relative z-50"
       >
         <div className="relative flex-1">
-          <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+          <Popover
+            open={isPopoverOpen}
+            onOpenChange={(open) => {
+              setIsPopoverOpen(open);
+              // When popover opens or closes, refocus the input
+              if (searchInputRef.current && !open) {
+                searchInputRef.current.focus();
+              }
+            }}
+          >
             <PopoverTrigger asChild>
               <div className="w-full">
                 <Input
@@ -314,13 +387,21 @@ export default function MapComponent({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full"
+                  ref={searchInputRef}
+                  // Prevent the input from losing focus when the popover opens
+                  onFocus={() => {
+                    if (searchResults.length > 0) {
+                      setIsPopoverOpen(true);
+                    }
+                  }}
                 />
               </div>
             </PopoverTrigger>
             <PopoverContent
-              className="p-0 w-[300px] lg:w-[400px]"
+              className="p-0 w-[300px] lg:w-[400px] popover-content"
               align="start"
               style={styles.popoverContentStyle}
+              sideOffset={5}
             >
               <Command>
                 <CommandList>
