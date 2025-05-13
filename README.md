@@ -1,4 +1,4 @@
-# 🌵 Drought Monitor
+# 🌵 Drought Prediction
 
 An interactive visualization tool for drought prediction and analysis across US counties and around the world.
 
@@ -11,7 +11,8 @@ An interactive visualization tool for drought prediction and analysis across US 
 
 ## Screenshots
 
-![image](https://github.com/user-attachments/assets/5d52ccbc-722d-4268-9942-cde0224fc009)
+![image](https://github.com/user-attachments/assets/a0142f91-e223-4915-9bc3-d8973cdb60e6)
+
 
 ## How to run it on your own machine
 
