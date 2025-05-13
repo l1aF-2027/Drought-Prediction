@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, subDays } from "date-fns";
+import { format, parse, isValid, subDays } from "date-fns";
 import dynamic from "next/dynamic";
 import { Loader2, Download, CalendarIcon, RefreshCw } from "lucide-react";
 import {
@@ -164,6 +164,19 @@ const isValidCoordinate = (value) => {
   return num >= -180 && num <= 180;
 };
 
+// Parse a date string in format DD/MM/YYYY or YYYY-MM-DD
+const parseDateInput = (dateStr) => {
+  // Try to parse as DD/MM/YYYY
+  let parsedDate = parse(dateStr, "dd/MM/yyyy", new Date());
+
+  // If not valid, try YYYY-MM-DD format
+  if (!isValid(parsedDate)) {
+    parsedDate = parse(dateStr, "yyyy-MM-dd", new Date());
+  }
+
+  return isValid(parsedDate) ? parsedDate : null;
+};
+
 export default function Home() {
   // State for coordinates
   const [coordinates, setCoordinates] = useState({
@@ -178,6 +191,10 @@ export default function Home() {
   // State for dates
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // State for date input fields
+  const [startDateInput, setStartDateInput] = useState("");
+  const [endDateInput, setEndDateInput] = useState("");
 
   // State for calendar popover
   const [startDateOpen, setStartDateOpen] = useState(false);
@@ -204,6 +221,10 @@ export default function Home() {
 
     setStartDate(format(sixMonthsAgo, "yyyy-MM-dd"));
     setEndDate(format(endDateDefault, "yyyy-MM-dd"));
+
+    // Set initial values for the input fields
+    setStartDateInput(format(sixMonthsAgo, "dd/MM/yyyy"));
+    setEndDateInput(format(endDateDefault, "dd/MM/yyyy"));
   }, []);
 
   // Update input fields when coordinates change (from map)
@@ -215,6 +236,16 @@ export default function Home() {
       setLongitudeInput(coordinates.longitude.toString());
     }
   }, [coordinates.latitude, coordinates.longitude]);
+
+  // Update date input fields when dates change
+  useEffect(() => {
+    if (startDate) {
+      setStartDateInput(format(new Date(startDate), "dd/MM/yyyy"));
+    }
+    if (endDate) {
+      setEndDateInput(format(new Date(endDate), "dd/MM/yyyy"));
+    }
+  }, [startDate, endDate]);
 
   // Handle coordinate input changes
   const handleLatitudeChange = (e) => {
@@ -243,14 +274,52 @@ export default function Home() {
     }
   };
 
+  // Handle direct date input changes
+  const handleStartDateInputChange = (e) => {
+    const value = e.target.value;
+    setStartDateInput(value);
+  };
+
+  const handleEndDateInputChange = (e) => {
+    const value = e.target.value;
+    setEndDateInput(value);
+  };
+
+  // Apply date input changes
+  const applyStartDateInput = () => {
+    const parsedDate = parseDateInput(startDateInput);
+    if (parsedDate) {
+      setStartDate(format(parsedDate, "yyyy-MM-dd"));
+    } else {
+      // Reset to previous valid date if input is invalid
+      if (startDate) {
+        setStartDateInput(format(new Date(startDate), "dd/MM/yyyy"));
+      }
+    }
+  };
+
+  const applyEndDateInput = () => {
+    const parsedDate = parseDateInput(endDateInput);
+    if (parsedDate) {
+      setEndDate(format(parsedDate, "yyyy-MM-dd"));
+    } else {
+      // Reset to previous valid date if input is invalid
+      if (endDate) {
+        setEndDateInput(format(new Date(endDate), "dd/MM/yyyy"));
+      }
+    }
+  };
+
   // Handle date changes from the calendar
   const handleStartDateChange = (date) => {
     setStartDate(format(date, "yyyy-MM-dd"));
+    setStartDateInput(format(date, "dd/MM/yyyy"));
     setStartDateOpen(false);
   };
 
   const handleEndDateChange = (date) => {
     setEndDate(format(date, "yyyy-MM-dd"));
+    setEndDateInput(format(date, "dd/MM/yyyy"));
     setEndDateOpen(false);
   };
 
@@ -263,7 +332,7 @@ export default function Home() {
   const fetchData = async () => {
     if (!coordinates.latitude || !coordinates.longitude) {
       setError("Vui lòng chọn một vị trí trên bản đồ trước");
-      return;
+      return false; // Return false to indicate failure
     }
 
     // Validate dates
@@ -273,7 +342,7 @@ export default function Home() {
     // Check if start date is after end date
     if (startDateObj > endDateObj) {
       setError("Ngày bắt đầu phải trước ngày kết thúc");
-      return;
+      return false; // Return false to indicate failure
     }
 
     // Check date range (maximum 175 days)
@@ -283,7 +352,7 @@ export default function Home() {
 
     if (differenceInDays > 174) {
       setError("Khoảng thời gian không được vượt quá 175 ngày");
-      return;
+      return false; // Return false to indicate failure
     }
 
     setIsLoading(true);
@@ -321,6 +390,8 @@ export default function Home() {
       const valuesArray = JSON.parse(X_static);
       if (valuesArray[0] === 0 && valuesArray[valuesArray.length - 1] === 0) {
         setError("Bạn đang không ở khu vực có đất");
+        setIsLoading(false);
+        return false; // Return false to indicate that we should stop here
       }
 
       // Fetch time series data
@@ -349,14 +420,54 @@ export default function Home() {
       if (X_static && timeSeriesResult.rawCsv) {
         setShowDroughtPredictions(true);
       }
+
+      return true; // Return true to indicate success
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định"
       );
+      return false; // Return false to indicate failure
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Auto-fetch data when coordinates or dates change
+  useEffect(() => {
+    let isMounted = true; // Flag to track if component is mounted
+
+    const autoFetchData = async () => {
+      if (
+        coordinates.latitude &&
+        coordinates.longitude &&
+        startDate &&
+        endDate
+      ) {
+        // Only fetch data if the component is still mounted
+        if (isMounted) {
+          const result = await fetchData();
+          // If fetchData returns false, we've encountered an error and should stop processing
+          if (!result) {
+            console.log("Fetching data stopped due to validation error");
+            // Clear results data when there's an error
+            if (error === "Bạn đang không ở khu vực có đất" || error) {
+              setSoilData(null);
+              setTimeSeriesData(null);
+              setRawCsvData(null);
+              setShowDroughtPredictions(false);
+            }
+          }
+        }
+      }
+    };
+
+    autoFetchData();
+
+    // Cleanup function
+    return () => {
+      isMounted = false; // Set flag to false when component unmounts
+    };
+  }, [coordinates.latitude, coordinates.longitude, startDate, endDate]);
 
   // Reset date range to last 6 months
   const resetDateRange = () => {
@@ -365,6 +476,9 @@ export default function Home() {
 
     setStartDate(format(sixMonthsAgo, "yyyy-MM-dd"));
     setEndDate(format(now, "yyyy-MM-dd"));
+
+    setStartDateInput(format(sixMonthsAgo, "dd/MM/yyyy"));
+    setEndDateInput(format(now, "dd/MM/yyyy"));
   };
 
   // Handle coordinate selection from map
@@ -606,70 +720,95 @@ export default function Home() {
               </div>
 
               <div className="flex flex-col space-y-3">
-                {/* Calendar for Start Date */}
+                {/* Calendar and Input for Start Date */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="startDate" className="text-right col-span-1">
                     Từ:
                   </Label>
-                  <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="startDate"
-                        variant={"outline"}
-                        className="col-span-3 justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {startDate
-                          ? format(new Date(startDate), "dd/MM/yyyy")
-                          : "Chọn ngày"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={startDate ? new Date(startDate) : undefined}
-                        defaultMonth={
-                          startDate ? new Date(startDate) : undefined
+                  <div className="col-span-3 flex">
+                    <Input
+                      id="startDateInput"
+                      value={startDateInput}
+                      onChange={handleStartDateInputChange}
+                      onBlur={applyStartDateInput}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          applyStartDateInput();
                         }
-                        onSelect={handleStartDateChange}
-                        fromDate={new Date("2000-01-01")}
-                        toDate={new Date("2025-05-10")}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                      }}
+                      placeholder="DD/MM/YYYY"
+                      className="rounded-r-none"
+                    />
+                    <Popover
+                      open={startDateOpen}
+                      onOpenChange={setStartDateOpen}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="rounded-l-none border-l-0"
+                        >
+                          <CalendarIcon className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={startDate ? new Date(startDate) : undefined}
+                          defaultMonth={
+                            startDate ? new Date(startDate) : undefined
+                          }
+                          onSelect={handleStartDateChange}
+                          fromDate={new Date("2000-01-01")}
+                          toDate={new Date("2025-05-10")}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
 
-                {/* Calendar for End Date */}
+                {/* Calendar and Input for End Date */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="endDate" className="text-right col-span-1">
                     Đến:
                   </Label>
-                  <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="endDate"
-                        variant={"outline"}
-                        className="col-span-3 justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {endDate
-                          ? format(new Date(endDate), "dd/MM/yyyy")
-                          : "Chọn ngày"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={endDate ? new Date(endDate) : undefined}
-                        defaultMonth={endDate ? new Date(endDate) : undefined}
-                        onSelect={handleEndDateChange}
-                        fromDate={new Date("2000-01-01")}
-                        toDate={new Date("2025-05-10")}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <div className="col-span-3 flex">
+                    <Input
+                      id="endDateInput"
+                      value={endDateInput}
+                      onChange={handleEndDateInputChange}
+                      onBlur={applyEndDateInput}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          applyEndDateInput();
+                        }
+                      }}
+                      placeholder="DD/MM/YYYY"
+                      className="rounded-r-none"
+                    />
+                    <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="rounded-l-none border-l-0"
+                        >
+                          <CalendarIcon className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={endDate ? new Date(endDate) : undefined}
+                          defaultMonth={endDate ? new Date(endDate) : undefined}
+                          onSelect={handleEndDateChange}
+                          fromDate={new Date("2000-01-01")}
+                          toDate={new Date("2025-05-10")}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
               </div>
             </div>

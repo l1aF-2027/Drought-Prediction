@@ -9,6 +9,7 @@ import {
   useMapEvents,
   Popup,
   useMap,
+  LayersControl,
 } from "react-leaflet";
 import { Icon } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -40,6 +41,40 @@ const customIcon = new Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
 });
+
+// Define available map layers
+const mapLayers = {
+  basic: {
+    name: "Bản đồ cơ bản",
+    url: "https://api.maptiler.com/maps/basic-v2/256/{z}/{x}/{y}.png?key=P96WEPQUms3wpDYVjOhc",
+    attribution:
+      '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; OpenStreetMap contributors',
+  },
+  satellite: {
+    name: "Vệ tinh",
+    url: "https://api.maptiler.com/maps/satellite/256/{z}/{x}/{y}.jpg?key=P96WEPQUms3wpDYVjOhc",
+    attribution:
+      '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; OpenStreetMap contributors',
+  },
+  hybrid: {
+    name: "Vệ tinh",
+    url: "https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=P96WEPQUms3wpDYVjOhc",
+    attribution:
+      '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; OpenStreetMap contributors',
+  },
+  streets: {
+    name: "Đường phố",
+    url: "https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=P96WEPQUms3wpDYVjOhc",
+    attribution:
+      '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; OpenStreetMap contributors',
+  },
+  openStreetMap: {
+    name: "OpenStreetMap",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+};
 
 // Component to update map view when coordinates change
 function MapUpdater({ position }: { position: [number, number] }) {
@@ -441,11 +476,21 @@ export default function MapComponent({
           style={styles.mapContainerStyle}
           ref={mapRef}
         >
-          {/* Using a Vietnamese-friendly tile layer */}
-          <TileLayer
-            url="https://api.maptiler.com/maps/basic-v2/256/{z}/{x}/{y}.png?key=P96WEPQUms3wpDYVjOhc"
-            attribution='&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; OpenStreetMap contributors'
-          />
+          <LayersControl position="topright">
+            <LayersControl.BaseLayer checked name={mapLayers.basic.name}>
+              <TileLayer
+                url={mapLayers.basic.url}
+                attribution={mapLayers.basic.attribution}
+              />
+            </LayersControl.BaseLayer>
+
+            <LayersControl.BaseLayer name={mapLayers.hybrid.name}>
+              <TileLayer
+                url={mapLayers.hybrid.url}
+                attribution={mapLayers.hybrid.attribution}
+              />
+            </LayersControl.BaseLayer>
+          </LayersControl>
 
           {position && (
             <Marker
