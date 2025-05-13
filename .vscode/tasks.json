@@ -1,0 +1,97 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run LSTM-20",
+      "type": "shell",
+      "command": "D:/ASUS/CS313/BT/Drought-Prediction/myenv/Scripts/python.exe",
+      "args": ["app.py"],
+      "options": {
+        "cwd": "D:/ASUS/CS313/BT/Drought-Prediction/drought-api/Drought-API-LSTM-20"
+      }
+    },
+    {
+      "label": "Run LSTM-21",
+      "type": "shell",
+      "command": "D:/ASUS/CS313/BT/Drought-Prediction/myenv/Scripts/python.exe",
+      "args": ["app.py"],
+      "options": {
+        "cwd": "D:/ASUS/CS313/BT/Drought-Prediction/drought-api/Drought-API-LSTM-21"
+      }
+    },
+    {
+      "label": "Run GRU-20",
+      "type": "shell",
+      "command": "D:/ASUS/CS313/BT/Drought-Prediction/myenv/Scripts/python.exe",
+      "args": ["app.py"],
+      "options": {
+        "cwd": "D:/ASUS/CS313/BT/Drought-Prediction/drought-api/Drought-API-GRU-20"
+      }
+    },
+    {
+      "label": "Run GRU-21",
+      "type": "shell",
+      "command": "D:/ASUS/CS313/BT/Drought-Prediction/myenv/Scripts/python.exe",
+      "args": ["app.py"],
+      "options": {
+        "cwd": "D:/ASUS/CS313/BT/Drought-Prediction/drought-api/Drought-API-GRU-21"
+      }
+    },
+    {
+      "label": "Run TRANS-20",
+      "type": "shell",
+      "command": "D:/ASUS/CS313/BT/Drought-Prediction/myenv/Scripts/python.exe",
+      "args": ["app.py"],
+      "options": {
+        "cwd": "D:/ASUS/CS313/BT/Drought-Prediction/drought-api/Drought-API-TRANS-20"
+      }
+    },
+    {
+      "label": "Run TRANS-21",
+      "type": "shell",
+      "command": "D:/ASUS/CS313/BT/Drought-Prediction/myenv/Scripts/python.exe",
+      "args": ["app.py"],
+      "options": {
+        "cwd": "D:/ASUS/CS313/BT/Drought-Prediction/drought-api/Drought-API-TRANS-21"
+      }
+    },
+    {
+      "label": "Run LSTM-Atten-20",
+      "type": "shell",
+      "command": "D:/ASUS/CS313/BT/Drought-Prediction/myenv/Scripts/python.exe",
+      "args": ["app.py"],
+      "options": {
+        "cwd": "D:/ASUS/CS313/BT/Drought-Prediction/drought-api/Drought-API-LSTM-Atten-20"
+      }
+    },
+    {
+      "label": "Run LSTM-Atten-21",
+      "type": "shell",
+      "command": "D:/ASUS/CS313/BT/Drought-Prediction/myenv/Scripts/python.exe",
+      "args": ["app.py"],
+      "options": {
+        "cwd": "D:/ASUS/CS313/BT/Drought-Prediction/drought-api/Drought-API-LSTM-Atten-21"
+      }
+    },
+
+    {
+      "label": "Run All Models",
+      "dependsOn": [
+        "Run LSTM-20",
+        "Run LSTM-21",
+        "Run GRU-20",
+        "Run GRU-21",
+        "Run TRANS-20",
+        "Run TRANS-21",
+        "Run LSTM-Atten-20",
+        "Run LSTM-Atten-21"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}
