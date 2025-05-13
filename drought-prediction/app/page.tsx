@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, subDays } from "date-fns";
 import dynamic from "next/dynamic";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, CalendarIcon, RefreshCw } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -16,6 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 // Dynamically import the MapComponent to avoid SSR issues with Leaflet
 const MapComponent = dynamic(() => import("@/components/map-component"), {
@@ -173,6 +179,10 @@ export default function Home() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  // State for calendar popover
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
+
   // State for region and model selections
   const [selectedRegion, setSelectedRegion] = useState("GLOBAL");
   const [selectedModel, setSelectedModel] = useState("LSTM");
@@ -189,11 +199,11 @@ export default function Home() {
 
   // Initialize dates on component mount
   useEffect(() => {
-    const now = new Date();
-    const sixMonthsAgo = subDays(now, 174);
+    const endDateDefault = new Date("2025-05-10");
+    const sixMonthsAgo = subDays(endDateDefault, 174);
 
     setStartDate(format(sixMonthsAgo, "yyyy-MM-dd"));
-    setEndDate(format(now, "yyyy-MM-dd"));
+    setEndDate(format(endDateDefault, "yyyy-MM-dd"));
   }, []);
 
   // Update input fields when coordinates change (from map)
@@ -233,12 +243,22 @@ export default function Home() {
     }
   };
 
+  // Handle date changes from the calendar
+  const handleStartDateChange = (date) => {
+    setStartDate(format(date, "yyyy-MM-dd"));
+    setStartDateOpen(false);
+  };
+
+  const handleEndDateChange = (date) => {
+    setEndDate(format(date, "yyyy-MM-dd"));
+    setEndDateOpen(false);
+  };
+
   // Get the current API endpoint based on selected region and model
   const getCurrentApiEndpoint = () => {
     return MODEL_TYPES[selectedModel].apis[selectedRegion];
   };
 
-  // Fetch data from APIs
   // Fetch data from APIs
   const fetchData = async () => {
     if (!coordinates.latitude || !coordinates.longitude) {
@@ -336,6 +356,15 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Reset date range to last 6 months
+  const resetDateRange = () => {
+    const now = new Date();
+    const sixMonthsAgo = subDays(now, 174);
+
+    setStartDate(format(sixMonthsAgo, "yyyy-MM-dd"));
+    setEndDate(format(now, "yyyy-MM-dd"));
   };
 
   // Handle coordinate selection from map
@@ -562,25 +591,86 @@ export default function Home() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4 max-w-[250px]">
-              <div className="space-y-2">
-                <Label htmlFor="startDate">Ngày Bắt Đầu</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Khoảng Thời Gian</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={resetDateRange}
+                  title="Đặt lại khoảng thời gian về 6 tháng gần đây"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="endDate">Ngày Kết Thúc</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
+              <div className="flex flex-col space-y-3">
+                {/* Calendar for Start Date */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="startDate" className="text-right col-span-1">
+                    Từ:
+                  </Label>
+                  <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="startDate"
+                        variant={"outline"}
+                        className="col-span-3 justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {startDate
+                          ? format(new Date(startDate), "dd/MM/yyyy")
+                          : "Chọn ngày"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={startDate ? new Date(startDate) : undefined}
+                        defaultMonth={
+                          startDate ? new Date(startDate) : undefined
+                        }
+                        onSelect={handleStartDateChange}
+                        fromDate={new Date("2000-01-01")}
+                        toDate={new Date("2025-05-10")}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Calendar for End Date */}
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="endDate" className="text-right col-span-1">
+                    Đến:
+                  </Label>
+                  <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="endDate"
+                        variant={"outline"}
+                        className="col-span-3 justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {endDate
+                          ? format(new Date(endDate), "dd/MM/yyyy")
+                          : "Chọn ngày"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={endDate ? new Date(endDate) : undefined}
+                        defaultMonth={endDate ? new Date(endDate) : undefined}
+                        onSelect={handleEndDateChange}
+                        fromDate={new Date("2000-01-01")}
+                        toDate={new Date("2025-05-10")}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             </div>
 
