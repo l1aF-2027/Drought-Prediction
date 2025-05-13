@@ -41,9 +41,9 @@ npm run dev
 
 ```bash
 cd drought-api
-python -m venv venv
-venv/Scripts/activate     # On Windows
-source venv/bin/activate  # On macOS/Linux
+python -m venv myvenv
+myvenv/Scripts/activate     # On Windows
+source myvenv/bin/activate  # On macOS/Linux
 
 pip install -r requirements.txt
 ```
