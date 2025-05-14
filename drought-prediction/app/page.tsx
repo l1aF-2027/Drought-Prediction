@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, parse, isValid, subDays } from "date-fns";
+import { format, parse, isValid, subDays, addDays } from "date-fns";
 import dynamic from "next/dynamic";
 import { Loader2, Download, CalendarIcon, RefreshCw } from "lucide-react";
 import {
@@ -29,7 +29,7 @@ const MapComponent = dynamic(() => import("@/components/map-component"), {
   loading: () => (
     <div className="flex items-center justify-center h-[500px] bg-gray-100">
       <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-      <span className="ml-2 text-gray-500">Đang tải bản đồ...</span>
+      <span className="ml-2 text-gray-500 text-center">Đang tải bản đồ...</span>
     </div>
   ),
 });
@@ -70,6 +70,7 @@ const MODEL_TYPES = {
       GLOBAL: "http://localhost:7864/predict",
       US: "http://localhost:7865/predict",
     },
+    maxDays: 174, // Thêm maxDays cho Transformer
   },
   LSTMAttn: {
     label: "LSTM & Attention",
@@ -285,11 +286,47 @@ export default function Home() {
     setEndDateInput(value);
   };
 
+  // Auto-adjust end date when start date changes
+  const adjustEndDateFromStart = (startDateStr) => {
+    const startDateObj = new Date(startDateStr);
+    if (isValid(startDateObj)) {
+      // Calculate new end date by adding 174 days to start date
+      const newEndDate = addDays(startDateObj, 174);
+
+      // Check if new end date is after maximum allowed date
+      const maxDate = new Date("2025-05-10");
+      const finalEndDate = newEndDate > maxDate ? maxDate : newEndDate;
+
+      setEndDate(format(finalEndDate, "yyyy-MM-dd"));
+      setEndDateInput(format(finalEndDate, "dd/MM/yyyy"));
+    }
+  };
+
+  // Auto-adjust start date when end date changes
+  const adjustStartDateFromEnd = (endDateStr) => {
+    const endDateObj = new Date(endDateStr);
+    if (isValid(endDateObj)) {
+      // Calculate new start date by subtracting 174 days from end date
+      const newStartDate = subDays(endDateObj, 174);
+
+      // Check if new start date is before minimum allowed date
+      const minDate = new Date("2000-01-01");
+      const finalStartDate = newStartDate < minDate ? minDate : newStartDate;
+
+      setStartDate(format(finalStartDate, "yyyy-MM-dd"));
+      setStartDateInput(format(finalStartDate, "dd/MM/yyyy"));
+    }
+  };
+
   // Apply date input changes
   const applyStartDateInput = () => {
     const parsedDate = parseDateInput(startDateInput);
     if (parsedDate) {
-      setStartDate(format(parsedDate, "yyyy-MM-dd"));
+      const formattedDate = format(parsedDate, "yyyy-MM-dd");
+      setStartDate(formattedDate);
+
+      // Automatically adjust end date
+      adjustEndDateFromStart(formattedDate);
     } else {
       // Reset to previous valid date if input is invalid
       if (startDate) {
@@ -301,7 +338,11 @@ export default function Home() {
   const applyEndDateInput = () => {
     const parsedDate = parseDateInput(endDateInput);
     if (parsedDate) {
-      setEndDate(format(parsedDate, "yyyy-MM-dd"));
+      const formattedDate = format(parsedDate, "yyyy-MM-dd");
+      setEndDate(formattedDate);
+
+      // Automatically adjust start date
+      adjustStartDateFromEnd(formattedDate);
     } else {
       // Reset to previous valid date if input is invalid
       if (endDate) {
@@ -312,20 +353,60 @@ export default function Home() {
 
   // Handle date changes from the calendar
   const handleStartDateChange = (date) => {
-    setStartDate(format(date, "yyyy-MM-dd"));
+    const formattedDate = format(date, "yyyy-MM-dd");
+    setStartDate(formattedDate);
     setStartDateInput(format(date, "dd/MM/yyyy"));
     setStartDateOpen(false);
+
+    // Automatically adjust end date
+    // adjustEndDateFromStart(formattedDate);
   };
 
   const handleEndDateChange = (date) => {
-    setEndDate(format(date, "yyyy-MM-dd"));
+    const formattedDate = format(date, "yyyy-MM-dd");
+    setEndDate(formattedDate);
     setEndDateInput(format(date, "dd/MM/yyyy"));
     setEndDateOpen(false);
+
+    // Automatically adjust start date
+    // adjustStartDateFromEnd(formattedDate);
   };
 
   // Get the current API endpoint based on selected region and model
   const getCurrentApiEndpoint = () => {
     return MODEL_TYPES[selectedModel].apis[selectedRegion];
+  };
+
+  // Function to check date range constraints based on selected model
+  const checkDateRangeConstraints = () => {
+    // Only check constraints for Transformer model
+    if (selectedModel === "TRANSFORMER" && MODEL_TYPES[selectedModel].maxDays) {
+      const startDateObj = new Date(startDate);
+      const endDateObj = new Date(endDate);
+
+      // Check if start date is after end date
+      if (startDateObj > endDateObj) {
+        return {
+          valid: false,
+          message: "Ngày bắt đầu phải trước ngày kết thúc",
+        };
+      }
+
+      // Calculate difference in days
+      const differenceInDays = Math.ceil(
+        (endDateObj.getTime() - startDateObj.getTime()) / (1000 * 3600 * 24)
+      );
+
+      // Check against model-specific constraints
+      if (differenceInDays > MODEL_TYPES[selectedModel].maxDays) {
+        return {
+          valid: false,
+          message: `Khoảng thời gian không được vượt quá ${MODEL_TYPES[selectedModel].maxDays} ngày với mô hình ${MODEL_TYPES[selectedModel].label}`,
+        };
+      }
+    }
+
+    return { valid: true };
   };
 
   // Fetch data from APIs
@@ -335,24 +416,11 @@ export default function Home() {
       return false; // Return false to indicate failure
     }
 
-    // Validate dates
-    const startDateObj = new Date(startDate);
-    const endDateObj = new Date(endDate);
-
-    // Check if start date is after end date
-    if (startDateObj > endDateObj) {
-      setError("Ngày bắt đầu phải trước ngày kết thúc");
-      return false; // Return false to indicate failure
-    }
-
-    // Check date range (maximum 175 days)
-    const differenceInDays = Math.ceil(
-      (endDateObj.getTime() - startDateObj.getTime()) / (1000 * 3600 * 24)
-    );
-
-    if (differenceInDays > 174) {
-      setError("Khoảng thời gian không được vượt quá 175 ngày");
-      return false; // Return false to indicate failure
+    // Check date constraints for Transformer model
+    const constraintCheck = checkDateRangeConstraints();
+    if (!constraintCheck.valid) {
+      setError(constraintCheck.message);
+      return false;
     }
 
     setIsLoading(true);
@@ -389,7 +457,7 @@ export default function Home() {
       // Check if last value of X_static is 0
       const valuesArray = JSON.parse(X_static);
       if (valuesArray[0] === 0 && valuesArray[valuesArray.length - 1] === 0) {
-        setError("Bạn đang không ở khu vực có đất");
+        setError("Bạn đang không ở khu vực có dữ liệu đất");
         setIsLoading(false);
         return false; // Return false to indicate that we should stop here
       }
@@ -450,7 +518,7 @@ export default function Home() {
           if (!result) {
             console.log("Fetching data stopped due to validation error");
             // Clear results data when there's an error
-            if (error === "Bạn đang không ở khu vực có đất" || error) {
+            if (error === "Bạn đang không ở khu vực có dữ liệu đất" || error) {
               setSoilData(null);
               setTimeSeriesData(null);
               setRawCsvData(null);
@@ -494,13 +562,32 @@ export default function Home() {
     setSelectedRegion(value);
     // Reset drought predictions when region changes
     setShowDroughtPredictions(false);
+    fetchData();
   };
 
+  // Handle model change
   // Handle model change
   const handleModelChange = (value) => {
     setSelectedModel(value);
     // Reset drought predictions when model changes
     setShowDroughtPredictions(false);
+
+    // Check date range constraints for new model
+    const constraintCheck = checkDateRangeConstraints();
+    if (!constraintCheck.valid) {
+      setError(constraintCheck.message);
+    } else {
+      setError(null);
+      // Automatically fetch data when model changes if coordinates are valid
+      if (
+        coordinates.latitude &&
+        coordinates.longitude &&
+        startDate &&
+        endDate
+      ) {
+        fetchData();
+      }
+    }
   };
 
   // Auto-fetch data when coordinates or dates change
@@ -857,16 +944,16 @@ export default function Home() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Đang Lấy Dữ Liệu...
+                  Đang Dự Đoán...
                 </>
               ) : (
-                "Lấy Dữ Liệu"
+                "Dự Đoán"
               )}
             </Button>
             {error && (
               <div
                 className={`text-sm mt-2 ${
-                  error === "Bạn đang không ở khu vực có đất"
+                  error === "Bạn đang không ở khu vực có dữ liệu đất"
                     ? "text-orange-500 font-semibold"
                     : "text-red-500"
                 }`}
@@ -880,11 +967,11 @@ export default function Home() {
 
       {/* Results Section */}
       {(soilData || timeSeriesData) &&
-        !(error && error === "Bạn đang không ở khu vực có đất") && (
+        !(error && error === "Bạn đang không ở khu vực có dữ liệu đất") && (
           <Card>
             <CardHeader>
               <CardTitle className="flex justify-between items-center">
-                <span>Kết Quả</span>
+                <span>Dữ Liệu</span>
                 <div className="flex gap-2">
                   {soilData && (
                     <Button
@@ -919,12 +1006,11 @@ export default function Home() {
                 <TabsList className="mb-4">
                   <TabsTrigger value="soil">Dữ Liệu Đất</TabsTrigger>
                   <TabsTrigger value="timeSeries">
-                    Dữ Liệu Chuỗi Thời Gian
+                    Dữ Liệu Thời Tiết
                   </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="soil" className="space-y-4">
-                  <h3 className="font-medium">Dữ Liệu Đất:</h3>
                   {soilData ? (
                     <div className="bg-white rounded-md border max-h-[600px] overflow-auto">
                       <SoilDataTable data={soilData} />
@@ -935,7 +1021,6 @@ export default function Home() {
                 </TabsContent>
 
                 <TabsContent value="timeSeries">
-                  <h3 className="font-medium">Dữ Liệu Chuỗi Thời Gian:</h3>
                   {timeSeriesData ? (
                     <div className="bg-white rounded-md border max-h-[600px] overflow-auto">
                       <CsvTable data={timeSeriesData} />

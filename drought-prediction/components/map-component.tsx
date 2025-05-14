@@ -15,7 +15,7 @@ import { Icon } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -28,7 +28,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Polygon, Tooltip } from "react-leaflet";
 
 // Define the marker icon
 const customIcon = new Icon({
@@ -76,6 +75,17 @@ const mapLayers = {
   },
 };
 
+// Function to normalize coordinates to standard range
+function normalizeCoordinates(lat, lng) {
+  // Normalize latitude to range -90 to 90
+  lat = Math.max(-90, Math.min(90, lat));
+
+  // Normalize longitude to range -180 to 180
+  lng = ((lng + 540) % 360) - 180;
+
+  return [lat, lng];
+}
+
 // Component to update map view when coordinates change
 function MapUpdater({ position }: { position: [number, number] }) {
   const map = useMap();
@@ -97,9 +107,11 @@ function MapEvents({
   const map = useMapEvents({
     click: (e) => {
       const { lat, lng } = e.latlng;
+      // Normalize coordinates before passing them to the handler
+      const [normalizedLat, normalizedLng] = normalizeCoordinates(lat, lng);
       onCoordinateSelect(
-        Number.parseFloat(lat.toFixed(6)),
-        Number.parseFloat(lng.toFixed(6))
+        Number.parseFloat(normalizedLat.toFixed(6)),
+        Number.parseFloat(normalizedLng.toFixed(6))
       );
     },
   });
@@ -162,11 +174,16 @@ export default function MapComponent({
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          const newPosition: [number, number] = [latitude, longitude];
+          // Normalize coordinates
+          const [normalizedLat, normalizedLng] = normalizeCoordinates(
+            latitude,
+            longitude
+          );
+          const newPosition: [number, number] = [normalizedLat, normalizedLng];
           setCurrentGpsPosition(newPosition);
           setPosition(newPosition);
           // Also update the parent component with the GPS position
-          onCoordinateSelect(latitude, longitude);
+          onCoordinateSelect(normalizedLat, normalizedLng);
         },
         (error) => {
           console.error("Error getting current position:", error);
@@ -188,14 +205,21 @@ export default function MapComponent({
   // Update position when coordinates prop changes
   useEffect(() => {
     if (coordinates.latitude !== null && coordinates.longitude !== null) {
-      setPosition([coordinates.latitude, coordinates.longitude]);
+      // Normalize coordinates from props
+      const [normalizedLat, normalizedLng] = normalizeCoordinates(
+        coordinates.latitude,
+        coordinates.longitude
+      );
+      setPosition([normalizedLat, normalizedLng]);
     }
   }, [coordinates.latitude, coordinates.longitude]);
 
   // Handle marker position change
   const handleMarkerPositionChange = (lat: number, lng: number) => {
-    setPosition([lat, lng]);
-    onCoordinateSelect(lat, lng);
+    // Normalize coordinates
+    const [normalizedLat, normalizedLng] = normalizeCoordinates(lat, lng);
+    setPosition([normalizedLat, normalizedLng]);
+    onCoordinateSelect(normalizedLat, normalizedLng);
   };
 
   // Function to get detailed information about a location by its ID
@@ -289,18 +313,32 @@ export default function MapComponent({
         const centroidLat = Number.parseFloat(details.centroid.coordinates[1]);
         const centroidLon = Number.parseFloat(details.centroid.coordinates[0]);
 
+        // Normalize coordinates
+        const [normalizedLat, normalizedLng] = normalizeCoordinates(
+          centroidLat,
+          centroidLon
+        );
+
         // Update marker position with centroid
-        setPosition([centroidLat, centroidLon]);
-        onCoordinateSelect(centroidLat, centroidLon);
+        setPosition([normalizedLat, normalizedLng]);
+        onCoordinateSelect(normalizedLat, normalizedLng);
       } else {
         // Fallback to regular coordinates
-        setPosition([latitude, longitude]);
-        onCoordinateSelect(latitude, longitude);
+        const [normalizedLat, normalizedLng] = normalizeCoordinates(
+          latitude,
+          longitude
+        );
+        setPosition([normalizedLat, normalizedLng]);
+        onCoordinateSelect(normalizedLat, normalizedLng);
       }
     } else {
       // If osm_type or osm_id not available, use regular coordinates
-      setPosition([latitude, longitude]);
-      onCoordinateSelect(latitude, longitude);
+      const [normalizedLat, normalizedLng] = normalizeCoordinates(
+        latitude,
+        longitude
+      );
+      setPosition([normalizedLat, normalizedLng]);
+      onCoordinateSelect(normalizedLat, normalizedLng);
     }
 
     // Update search query but keep the popover open
@@ -347,18 +385,29 @@ export default function MapComponent({
           const centroidLon = Number.parseFloat(
             details.centroid.coordinates[0]
           );
-          setPosition([centroidLat, centroidLon]);
-          onCoordinateSelect(centroidLat, centroidLon);
-          mapRef.current?.setView([centroidLat, centroidLon], 14);
+
+          // Normalize coordinates
+          const [normalizedLat, normalizedLng] = normalizeCoordinates(
+            centroidLat,
+            centroidLon
+          );
+
+          setPosition([normalizedLat, normalizedLng]);
+          onCoordinateSelect(normalizedLat, normalizedLng);
+          mapRef.current?.setView([normalizedLat, normalizedLng], 14);
           setIsPopoverOpen(false);
           return;
         }
       }
 
       // If no centroid available, use original lat/lon
-      setPosition([latitude, longitude]);
-      onCoordinateSelect(latitude, longitude);
-      mapRef.current?.setView([latitude, longitude], 14);
+      const [normalizedLat, normalizedLng] = normalizeCoordinates(
+        latitude,
+        longitude
+      );
+      setPosition([normalizedLat, normalizedLng]);
+      onCoordinateSelect(normalizedLat, normalizedLng);
+      mapRef.current?.setView([normalizedLat, normalizedLng], 14);
       setSearchQuery(firstResult.display_name);
       setIsPopoverOpen(false);
     } else {
@@ -394,7 +443,12 @@ export default function MapComponent({
   }, []);
 
   if (!position) {
-    return <div>Đang tải bản đồ...</div>;
+    return (
+      <div className="flex items-center justify-center h-[500px] bg-gray-100">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+        <span className="ml-2 text-gray-500">Đang tải bản đồ...</span>
+      </div>
+    );
   }
 
   return (
@@ -475,6 +529,8 @@ export default function MapComponent({
           zoom={13}
           style={styles.mapContainerStyle}
           ref={mapRef}
+          // Add worldCopyJump to handle coordinates properly across date line
+          worldCopyJump={true}
         >
           <LayersControl position="topright">
             <LayersControl.BaseLayer checked name={mapLayers.basic.name}>
@@ -501,9 +557,14 @@ export default function MapComponent({
                 dragend: (e) => {
                   const marker = e.target;
                   const position = marker.getLatLng();
+                  // Normalize coordinates from drag event
+                  const [normalizedLat, normalizedLng] = normalizeCoordinates(
+                    position.lat,
+                    position.lng
+                  );
                   handleMarkerPositionChange(
-                    Number.parseFloat(position.lat.toFixed(6)),
-                    Number.parseFloat(position.lng.toFixed(6))
+                    Number.parseFloat(normalizedLat.toFixed(6)),
+                    Number.parseFloat(normalizedLng.toFixed(6))
                   );
                 },
               }}
