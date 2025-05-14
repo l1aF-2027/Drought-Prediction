@@ -49,7 +49,7 @@ pip install -r requirements.txt
 
 ### ▶️ Run the ML Models (Optional for prediction tasks)
 
-If you're using VSCode (remember to change your path in.vscode/task.json):
+If you're using VSCode :
 
 1. Press `Ctrl + Shift + P`
 2. Type: `Tasks: Run Task`
