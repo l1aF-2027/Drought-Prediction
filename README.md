@@ -40,17 +40,16 @@ npm run dev
 ### 3️⃣ Set up the **backend**
 
 ```bash
-cd drought-api
-python -m venv venv
-venv/Scripts/activate     # On Windows
-source venv/bin/activate  # On macOS/Linux
+python -3.10 -m venv myvenv
+myvenv/Scripts/activate     # On Windows
+source myvenv/bin/activate  # On macOS/Linux
 
 pip install -r requirements.txt
 ```
 
 ### ▶️ Run the ML Models (Optional for prediction tasks)
 
-If you're using VSCode:
+If you're using VSCode (remember to change your path in.vscode/task.json):
 
 1. Press `Ctrl + Shift + P`
 2. Type: `Tasks: Run Task`
