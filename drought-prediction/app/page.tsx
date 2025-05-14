@@ -539,7 +539,7 @@ export default function Home() {
 
   // Reset date range to last 6 months
   const resetDateRange = () => {
-    const now = new Date();
+    const now = new Date("2025-05-10");
     const sixMonthsAgo = subDays(now, 174);
 
     setStartDate(format(sixMonthsAgo, "yyyy-MM-dd"));
