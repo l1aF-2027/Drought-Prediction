@@ -14,7 +14,6 @@ A powerful and interactive visualization platform for **drought prediction** and
 * ⚡ **FastAPI backend** with integrated ML model serving.
 * 🌐 **Next.js frontend** with responsive maps and dashboards.
 
----
 
 ## 🚀 Getting Started
 
@@ -57,7 +56,6 @@ If you're using VSCode :
 
 Or, run them manually if defined in `tasks.json`.
 
----
 
 ## 📸 Screenshots
 
@@ -65,7 +63,6 @@ Or, run them manually if defined in `tasks.json`.
 
 ![App Screenshot](https://github.com/user-attachments/assets/a0142f91-e223-4915-9bc3-d8973cdb60e6)
 
----
 
 ## 📁 Project Structure
 
@@ -76,7 +73,6 @@ drought-prediction/
 └── README.md
 ```
 
----
 
 ## 🧠 Technologies Used
 
@@ -85,14 +81,12 @@ drought-prediction/
 * **ML Models**: LSTM, Transformers, GRU, LSTM + Attention
 * **Maps**: GeoJSON, Shapely, US FIPS mapping
 
----
 
 ## 📬 Contact
 
 * 📧 Email: \[[ha.huy.hoang.tk@example.com](mailto:ha.huy.hoang.tk@gmail.com)]
 * 🌐 Website: \[[My Site](https://l1af.vercel.app/)]
 
----
 
 ## 📄 License
 
