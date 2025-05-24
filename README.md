@@ -2,6 +2,19 @@
 
 A powerful and interactive visualization platform for **drought prediction** and **analysis** across **U.S. counties** and global regions. This tool provides predictive insights using weather, soil, and spatial data.
 
+## Task Allocation
+
+| Name               | Student ID | Tasks                                              | Contribution (%) |
+|--------------------|------------|----------------------------------------------------|------------------|
+| Lê Văn Hoàng       | 22520465   | Research, model implementation, slides, presentation | 16.67%          |
+| Hà Huy Hoàng       | 22520460   | Application development (frontend, backend)        | 16.67%          |
+| Nguyễn Duy Hoàng   | 22520467   | Research, report writing                           | 16.67%          |
+| Đặng Vĩnh Hội      | 22520490   | Research, backend                                  | 16.67%          |
+| Phạm Đức Huy Hoàng| 22520474   | Research, EDA                                      | 16.67%          |
+| Thạch Minh Hoàng  | 22520477   | Research, EDA, presentation                        | 16.67%          |
+
+
+
 ## 🔍 Features
 
 * 🗺️ **Geospatial visualization**:
